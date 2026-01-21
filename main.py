@@ -1,37 +1,50 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import numpy as np
 import joblib
+import numpy as np
+import pandas as pd
 
 app = FastAPI(title="Fraud Detection API")
 
-# ---- Load trained model (when you save it from notebook) ----
-# model = joblib.load("model.pkl")
+# Load model & columns
+model = joblib.load("fraud_model.joblib")
+model_columns = joblib.load("model_columns.joblib")
 
 class Transaction(BaseModel):
+    type: str
     amount: float
-    feature1: float
-    feature2: float
-    feature3: float
+    oldbalanceOrg: float
+    newbalanceOrg: float
+    oldbalanceDest: float
+    newbalanceDest: float
 
 @app.get("/")
-def root():
+def home():
     return {"message": "Fraud Detection API is running"}
 
 @app.post("/predict")
-def predict(data: Transaction):
-    """
-    Dummy logic for now.
-    Replace with real ML model prediction later.
-    """
-    features = np.array([[data.amount, data.feature1, data.feature2, data.feature3]])
+def predict(txn: Transaction):
+    data = {
+        "amount": txn.amount,
+        "oldbalanceOrg": txn.oldbalanceOrg,
+        "newbalanceOrg": txn.newbalanceOrg,
+        "oldbalanceDest": txn.oldbalanceDest,
+        "newbalanceDest": txn.newbalanceDest,
+        f"type_{txn.type}": 1
+    }
 
-    # When you have a real model:
-    # prediction = model.predict(features)[0]
+    row = pd.DataFrame([data])
 
-    prediction = 0  # 0 = Not Fraud, 1 = Fraud (dummy)
+    for col in model_columns:
+        if col not in row:
+            row[col] = 0
+
+    row = row[model_columns]
+
+    prediction = model.predict(row)[0]
+    prob = model.predict_proba(row)[0][1]
 
     return {
         "fraud": bool(prediction),
-        "prediction": int(prediction)
+        "probability": round(float(prob), 4)
     }
