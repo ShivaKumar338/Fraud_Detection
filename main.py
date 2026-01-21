@@ -1,14 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
-import numpy as np
 import pandas as pd
 
-app = FastAPI(title="Fraud Detection API")
+app = FastAPI()
 
-# Load model & columns
-model = joblib.load("fraud_model.joblib")
-model_columns = joblib.load("model_columns.joblib")
+model = joblib.load("model.joblib")
 
 class Transaction(BaseModel):
     type: str
@@ -23,28 +20,16 @@ def home():
     return {"message": "Fraud Detection API is running"}
 
 @app.post("/predict")
-def predict(txn: Transaction):
-    data = {
-        "amount": txn.amount,
-        "oldbalanceOrg": txn.oldbalanceOrg,
-        "newbalanceOrg": txn.newbalanceOrg,
-        "oldbalanceDest": txn.oldbalanceDest,
-        "newbalanceDest": txn.newbalanceDest,
-        f"type_{txn.type}": 1
-    }
+def predict(data: Transaction):
+    df = pd.DataFrame([data.dict()])
 
-    row = pd.DataFrame([data])
+    df["type"] = df["type"].map({
+        "PAYMENT": 0,
+        "TRANSFER": 1,
+        "CASH_OUT": 2,
+        "DEBIT": 3
+    })
 
-    for col in model_columns:
-        if col not in row:
-            row[col] = 0
+    prediction = model.predict(df)[0]
 
-    row = row[model_columns]
-
-    prediction = model.predict(row)[0]
-    prob = model.predict_proba(row)[0][1]
-
-    return {
-        "fraud": bool(prediction),
-        "probability": round(float(prob), 4)
-    }
+    return {"fraud": bool(prediction)}
