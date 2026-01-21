@@ -7,3 +7,9 @@ jupyter
 gunicorn
 uvicorn
 fastapi
+pydantic
+sqlalchemy
+psycopg2-binary
+joblib
+requests
+flask
