@@ -1,0 +1,4 @@
+import joblib
+
+joblib.dump(model, "model.joblib")
+print("Model saved as model.joblib")
